@@ -116,9 +116,6 @@ async function main() {
 	// Draw the image on the base_canvas
 	base_ctx.drawImage(image, 0, 0);
 
-	// // Get the image data
-	// const data = base_ctx.getImageData(0, 0, base_canvas.width, base_canvas.height).data;
-
 	// Create a result canvas
 	const res_canvas = document.createElement('canvas');
 	resizeCanvas(res_canvas);
@@ -128,36 +125,33 @@ async function main() {
 
 	// Draw blured base image on the result canvas
 	const bluredBase = () => {
-		const blur = 20;
-		res_ctx.filter = `blur(${blur}px)`;
+		res_ctx.filter = `blur(20px)`;
 		res_ctx.drawImage(image, 0, 0, (res_canvas.height / image.height) * image.width, res_canvas.height);
 		res_ctx.filter = 'none';
 	};
 
 	bluredBase();
 
+	const r = 10;
 	saved_coords = [];
 	current_coords = 0;
 
 	// Draw a random circle on the result canvas following the image
 	const circle = () => {
-		current_coords = (current_coords + 1) % (saved_coords.length / 2);
-		x = saved_coords[current_coords * 2];
-		y = saved_coords[current_coords * 2 + 1];
-		// Get the color of the pixel from the base canvas
-		const [pR, pG, pB] = base_ctx.getImageData(x / scale, y / scale, 1, 1).data;
+		current_coords = (current_coords + 1) % (saved_coords.length / 3);
+		const offset = current_coords * 3;
 
 		// Draw the circle
-		const r = 10;
-		res_ctx.fillStyle = `rgb(${pR}, ${pG}, ${pB})`;
+		res_ctx.fillStyle = saved_coords[offset + 2];
 		res_ctx.beginPath();
-		res_ctx.arc(x, y, r, 0, Math.PI * 2);
+		res_ctx.arc(saved_coords[offset], saved_coords[offset + 1], r, 0, Math.PI * 2);
 		res_ctx.fill();
 	};
 
+	const dps = 20;
+
 	// Loop functione
 	const loop = d => {
-		const dps = 50;
 		for (let i = 0; i < dps; i++) circle();
 		requestAnimationFrame(loop);
 	};
@@ -183,15 +177,24 @@ async function main() {
 				for (let j = 0; j < res_canvas.height; j += 10) {
 					const x = i + (Math.random() - 0.5) * 10;
 					const y = j + (Math.random() - 0.5) * 10;
-					temp_coords.push(x, y);
+
+					// Get the color of the pixel from the base canvas
+					const [pR, pG, pB] = base_ctx.getImageData(x / scale, y / scale, 1, 1).data;
+
+					if (pR === 0 && pG === 0 && pB === 0) continue;
+
+					// Code color in hex
+					const hex = `#${pR.toString(16).padStart(2, '0')}${pG.toString(16).padStart(2, '0')}${pB.toString(16).padStart(2, '0')}`;
+
+					temp_coords.push(x, y, hex);
 				}
 			}
 		}
 
 		// Shuffle the coordinates
 		while (temp_coords.length > 0) {
-			const i = Math.floor((Math.random() * temp_coords.length) / 2) * 2;
-			saved_coords.push(...temp_coords.splice(i, 2));
+			const i = Math.floor((Math.random() * temp_coords.length) / 3) * 3;
+			saved_coords.push(...temp_coords.splice(i, 3));
 		}
 
 		bluredBase();
@@ -204,7 +207,6 @@ async function main() {
 
 	// Draw semi-transparent white circles on touch
 	res_canvas.ontouchmove = e => {
-		// e.preventDefault();
 		const r = 10;
 		for (const touch of e.touches) {
 			const x = (touch.clientX / innerWidth) * res_canvas.width;
