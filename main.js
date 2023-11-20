@@ -98,6 +98,8 @@ function resizeCanvas(canvas) {
 }
 
 let mode = 1;
+let saved_coords = null;
+let current_coords = 0;
 
 async function main() {
 	// Load image from file
@@ -135,27 +137,28 @@ async function main() {
 	bluredBase();
 
 	const r = 10;
-	saved_coords = [];
-	current_coords = 0;
-
-	// Draw a random circle on the result canvas following the image
-	const circle = () => {
-		current_coords = (current_coords + 1) % (saved_coords.length / 3);
-		const offset = current_coords * 3;
-
-		// Draw the circle
-		res_ctx.fillStyle = saved_coords[offset + 2];
-		res_ctx.beginPath();
-		res_ctx.arc(saved_coords[offset], saved_coords[offset + 1], r, 0, Math.PI * 2);
-		res_ctx.fill();
-	};
 
 	const dps = 20;
 
 	// Loop functione
 	const loop = d => {
 		if (mode === -1) return;
-		for (let i = 0; i < dps; i++) circle();
+
+		for (let i = 0; i < dps; i++) {
+			current_coords = (current_coords + 1) % (saved_coords.length / 6);
+			const offset = current_coords * 6;
+
+			// Coordinates
+			const x = (saved_coords[offset] << 4) | ((saved_coords[offset + 1] >> 4) & 0xf);
+			const y = ((saved_coords[offset + 1] & 0xf) << 8) | saved_coords[offset + 2];
+
+			// Draw the circle
+			res_ctx.fillStyle = `rgb(${saved_coords[offset + 3]}, ${saved_coords[offset + 4]}, ${saved_coords[offset + 5]})`;
+			res_ctx.beginPath();
+			res_ctx.arc(x, y, r, 0, Math.PI * 2);
+			res_ctx.fill();
+		}
+
 		requestAnimationFrame(loop);
 	};
 
@@ -163,40 +166,47 @@ async function main() {
 		mode = -mode;
 
 		res_canvas.requestFullscreen();
-		saved_coords.length = 0;
 
 		resizeCanvas(res_canvas);
 		scale = res_canvas.height / image.height;
 
-		saved_coords.length = 0;
-		current_coords = 0;
+		// // Get context data
+		// const data = base_ctx.getImageData(0, 0, base_canvas.width, base_canvas.height).data;
 
+		// Temporary array to store the coordinates
 		temp_coords = [];
 
 		// Generate random coordinates to fill the canvas
-		for (let k = 0; k < 2; k++) {
-			for (let i = 0; i < res_canvas.width; i += 10) {
-				for (let j = 0; j < res_canvas.height; j += 10) {
-					const x = i + (Math.random() - 0.5) * 10;
-					const y = j + (Math.random() - 0.5) * 10;
+		for (let i = 0; i < res_canvas.width; i += 8) {
+			for (let j = 0; j < res_canvas.height; j += 10) {
+				const x = Math.round(i + (Math.random() - 0.5) * 10);
+				const y = Math.round(j + (Math.random() - 0.5) * 10);
 
-					// Get the color of the pixel from the base canvas
-					const [pR, pG, pB] = base_ctx.getImageData(x / scale, y / scale, 1, 1).data;
+				// Get the color of the pixel from the base canvas
+				const [r, g, b] = base_ctx.getImageData(x / scale, y / scale, 1, 1).data;
 
-					if (pR === 0 && pG === 0 && pB === 0) continue;
-
-					// Code color in hex
-					const hex = `#${pR.toString(16).padStart(2, '0')}${pG.toString(16).padStart(2, '0')}${pB.toString(16).padStart(2, '0')}`;
-
-					temp_coords.push(x, y, hex);
-				}
+				temp_coords.push([x, y, r, g, b]);
 			}
 		}
 
-		// Shuffle the coordinates
-		while (temp_coords.length > 0) {
-			const i = Math.floor((Math.random() * temp_coords.length) / 3) * 3;
-			saved_coords.push(...temp_coords.splice(i, 3));
+		// Store x, y, r, g, b in a byte array (12 bits per coordinate + 8 bits per color = 6 bytes per coordinate)
+		saved_coords = new Uint8Array(temp_coords.length * 6);
+		current_coords = 0;
+
+		// Shuffle the coordinates as we store them
+		const n = temp_coords.length;
+		for (let i = 0; i < n; i++) {
+			const temp = temp_coords.splice(Math.floor(Math.random() * temp_coords.length), 1)[0];
+
+			// x and y are stored as 12 bits each
+			saved_coords[i * 6] = (temp[0] >> 4) & 0xff;
+			saved_coords[i * 6 + 1] = ((temp[0] & 0xf) << 4) | ((temp[1] >> 8) & 0xf);
+			saved_coords[i * 6 + 2] = temp[1] & 0xff;
+
+			// r, g and b are stored as 8 bits each
+			saved_coords[i * 6 + 3] = temp[2];
+			saved_coords[i * 6 + 4] = temp[3];
+			saved_coords[i * 6 + 5] = temp[4];
 		}
 
 		bluredBase();
@@ -205,7 +215,20 @@ async function main() {
 		if (mode === 1) return loop();
 
 		// Mode -1 is the static mode
-		for (let i = 0; i < saved_coords.length / 3; i++) circle();
+		for (let i = 0; i < saved_coords.length / 6; i++) {
+			current_coords = (current_coords + 1) % (saved_coords.length / 6);
+			const offset = current_coords * 6;
+
+			// Coordinates
+			const x = (saved_coords[offset] << 4) | ((saved_coords[offset + 1] >> 4) & 0xf);
+			const y = ((saved_coords[offset + 1] & 0xf) << 8) | saved_coords[offset + 2];
+
+			// Draw the circle
+			res_ctx.fillStyle = `rgb(${saved_coords[offset + 3]}, ${saved_coords[offset + 4]}, ${saved_coords[offset + 5]})`;
+			res_ctx.beginPath();
+			res_ctx.arc(x, y, r, 0, Math.PI * 2);
+			res_ctx.fill();
+		}
 	};
 
 	// Draw semi-transparent white circles on touch
