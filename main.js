@@ -186,7 +186,8 @@ async function main() {
 	let started = false;
 
 	res_canvas.ondblclick = () => {
-		// res_canvas.requestFullscreen();
+		res_canvas.requestFullscreen();
+		saved_coords.length = 0;
 
 		resizeCanvas(res_canvas);
 		scale = res_canvas.height / image.height;
@@ -195,7 +196,6 @@ async function main() {
 
 		if (!started) {
 			started = true;
-			console.log('started');
 			loop();
 		}
 	};
