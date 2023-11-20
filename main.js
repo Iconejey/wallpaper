@@ -224,7 +224,7 @@ async function main() {
 			const y = ((saved_coords[offset + 1] & 0xf) << 8) | saved_coords[offset + 2];
 
 			// Draw the circle
-			res_ctx.fillStyle = `rgb(${saved_coords[offset + 3]}, ${saved_coords[offset + 4]}, ${saved_coords[offset + 5]})`;
+			res_ctx.fillStyle = `rgb(${saved_coords[offset + 3]}, ${saved_coords[offset + 3]}, ${saved_coords[offset + 3]})`;
 			res_ctx.beginPath();
 			res_ctx.arc(x, y, r, 0, Math.PI * 2);
 			res_ctx.fill();
