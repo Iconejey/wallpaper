@@ -89,6 +89,14 @@ function fixHue(data) {
 	}
 }
 
+let scale = 1;
+
+function resizeCanvas(canvas) {
+	const ratio = innerWidth / innerHeight;
+	canvas.width = 2160;
+	canvas.height = canvas.width / ratio;
+}
+
 async function main() {
 	// Load image from file
 	const image = new Image();
@@ -113,20 +121,10 @@ async function main() {
 
 	// Create a result canvas
 	const res_canvas = document.createElement('canvas');
-	const ratio = image.width / image.height;
-	res_canvas.width = 2160;
-	res_canvas.height = 2160 / ratio;
-	const scale = res_canvas.width / image.width;
+	resizeCanvas(res_canvas);
+	scale = res_canvas.height / image.height;
 	const res_ctx = res_canvas.getContext('2d');
 	document.body.appendChild(res_canvas);
-
-	const blur = 20;
-	res_ctx.filter = `blur(${blur}px)`;
-
-	// Draw the image on the result canvas
-	res_ctx.drawImage(image, 0, 0, res_canvas.width, res_canvas.height);
-
-	res_ctx.filter = 'none';
 
 	// Draw a random circle on the result canvas following the image
 	const circle = () => {
@@ -159,9 +157,20 @@ async function main() {
 	};
 
 	// Start the loop
-	loop();
 
-	res_canvas.onclick = () => res_canvas.requestFullscreen();
+	res_canvas.onclick = () => {
+		res_canvas.requestFullscreen();
+
+		resizeCanvas(res_canvas);
+		scale = res_canvas.height / image.height;
+
+		const blur = 20;
+		res_ctx.filter = `blur(${blur}px)`;
+		res_ctx.drawImage(image, 0, 0, (res_canvas.height / image.height) * image.width, res_canvas.height);
+		res_ctx.filter = 'none';
+
+		loop();
+	};
 
 	// fixHue(data);
 
