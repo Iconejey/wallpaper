@@ -93,7 +93,7 @@ let scale = 1;
 
 function resizeCanvas(canvas) {
 	const ratio = innerWidth / innerHeight;
-	canvas.width = 2160;
+	canvas.width = 1080;
 	canvas.height = canvas.width / ratio;
 }
 
@@ -136,17 +136,32 @@ async function main() {
 
 	bluredBase();
 
+	saved_coords = [];
+	current_coords = -1;
+
 	// Draw a random circle on the result canvas following the image
 	const circle = () => {
+		let x, y;
+
 		// Random position
-		const r = 20;
-		const x = Math.random() * res_canvas.width;
-		const y = Math.random() * res_canvas.height;
+		if (saved_coords.length < 200000) {
+			x = Math.random() * res_canvas.width;
+			y = Math.random() * res_canvas.height;
+			saved_coords.push(x, y);
+		}
+
+		// Repeat saved positions
+		else {
+			current_coords = (current_coords + 1) % (saved_coords.length / 2);
+			x = saved_coords[current_coords * 2];
+			y = saved_coords[current_coords * 2 + 1];
+		}
 
 		// Get the color of the pixel from the base canvas
 		const [pR, pG, pB] = base_ctx.getImageData(x / scale, y / scale, 1, 1).data;
 
 		// Draw the circle
+		const r = 10;
 		res_ctx.fillStyle = `rgb(${pR}, ${pG}, ${pB})`;
 		res_ctx.beginPath();
 		res_ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -159,7 +174,8 @@ async function main() {
 	const loop = d => {
 		if (d) t += d;
 		// const dps = t / 1000 < 1000 ? 1000 : 100;
-		const dps = 20;
+		const dps = 50;
+
 		for (let i = 0; i < dps; i++) circle();
 
 		// Loop
@@ -170,7 +186,7 @@ async function main() {
 	let started = false;
 
 	res_canvas.ondblclick = () => {
-		res_canvas.requestFullscreen();
+		// res_canvas.requestFullscreen();
 
 		resizeCanvas(res_canvas);
 		scale = res_canvas.height / image.height;
@@ -187,7 +203,7 @@ async function main() {
 	// Draw semi-transparent white circles on touch
 	res_canvas.ontouchmove = e => {
 		// e.preventDefault();
-		const r = 20;
+		const r = 10;
 		for (const touch of e.touches) {
 			const x = (touch.clientX / innerWidth) * res_canvas.width;
 			const y = (touch.clientY / innerHeight) * res_canvas.height;
