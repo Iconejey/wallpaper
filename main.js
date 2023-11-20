@@ -179,11 +179,12 @@ async function main() {
 
 		if (!started) {
 			started = true;
+			console.log('started');
 			loop();
 		}
 	};
 
-	// Draw white circles on touch
+	// Draw semi-transparent white circles on touch
 	res_canvas.ontouchmove = e => {
 		// e.preventDefault();
 		const r = 20;
@@ -194,7 +195,7 @@ async function main() {
 			const rx = x + (Math.random() - 0.5) * (r * 4);
 			const ry = y + (Math.random() - 0.5) * (r * 4);
 
-			res_ctx.fillStyle = 'white';
+			res_ctx.fillStyle = `rgba(255, 255, 255, 0.4)`;
 			res_ctx.beginPath();
 			res_ctx.arc(rx, ry, r, 0, Math.PI * 2);
 			res_ctx.fill();
