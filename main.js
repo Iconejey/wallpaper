@@ -97,6 +97,8 @@ function resizeCanvas(canvas) {
 	canvas.height = canvas.width / ratio;
 }
 
+let mode = 1;
+
 async function main() {
 	// Load image from file
 	const image = new Image();
@@ -152,14 +154,14 @@ async function main() {
 
 	// Loop functione
 	const loop = d => {
+		if (mode === -1) return;
 		for (let i = 0; i < dps; i++) circle();
 		requestAnimationFrame(loop);
 	};
 
-	// Start the loop on double click
-	let started = false;
-
 	res_canvas.ondblclick = () => {
+		mode = -mode;
+
 		res_canvas.requestFullscreen();
 		saved_coords.length = 0;
 
@@ -199,14 +201,17 @@ async function main() {
 
 		bluredBase();
 
-		if (!started) {
-			started = true;
-			loop();
-		}
+		// Mode 1 is the loop mode
+		if (mode === 1) return loop();
+
+		// Mode -1 is the static mode
+		for (let i = 0; i < saved_coords.length / 3; i++) circle();
 	};
 
 	// Draw semi-transparent white circles on touch
 	res_canvas.ontouchmove = e => {
+		if (mode === -1) return;
+
 		const r = 10;
 		for (const touch of e.touches) {
 			const x = (touch.clientX / innerWidth) * res_canvas.width;
