@@ -126,6 +126,16 @@ async function main() {
 	const res_ctx = res_canvas.getContext('2d');
 	document.body.appendChild(res_canvas);
 
+	// Draw blured base image on the result canvas
+	const bluredBase = () => {
+		const blur = 20;
+		res_ctx.filter = `blur(${blur}px)`;
+		res_ctx.drawImage(image, 0, 0, (res_canvas.height / image.height) * image.width, res_canvas.height);
+		res_ctx.filter = 'none';
+	};
+
+	bluredBase();
+
 	// Draw a random circle on the result canvas following the image
 	const circle = () => {
 		// Random position
@@ -156,20 +166,43 @@ async function main() {
 		requestAnimationFrame(loop);
 	};
 
-	// Start the loop
+	// Start the loop on double click
+	let started = false;
 
-	res_canvas.onclick = () => {
+	res_canvas.ondblclick = () => {
 		res_canvas.requestFullscreen();
 
 		resizeCanvas(res_canvas);
 		scale = res_canvas.height / image.height;
 
-		const blur = 20;
-		res_ctx.filter = `blur(${blur}px)`;
-		res_ctx.drawImage(image, 0, 0, (res_canvas.height / image.height) * image.width, res_canvas.height);
-		res_ctx.filter = 'none';
+		bluredBase();
 
-		loop();
+		if (!started) {
+			started = true;
+			loop();
+		}
+	};
+
+	// Draw white circles on touch
+	res_canvas.ontouchmove = e => {
+		// e.preventDefault();
+		const r = 20;
+		for (const touch of e.touches) {
+			const x = (touch.clientX / innerWidth) * res_canvas.width;
+			const y = (touch.clientY / innerHeight) * res_canvas.height;
+
+			const rx = x + (Math.random() - 0.5) * (r * 4);
+			const ry = y + (Math.random() - 0.5) * (r * 4);
+
+			res_ctx.fillStyle = 'white';
+			res_ctx.beginPath();
+			res_ctx.arc(rx, ry, r, 0, Math.PI * 2);
+			res_ctx.fill();
+		}
+	};
+
+	res_canvas.ontouchstart = e => {
+		res_canvas.ontouchmove(e);
 	};
 
 	// fixHue(data);
