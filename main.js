@@ -137,26 +137,13 @@ async function main() {
 	bluredBase();
 
 	saved_coords = [];
-	current_coords = -1;
+	current_coords = 0;
 
 	// Draw a random circle on the result canvas following the image
 	const circle = () => {
-		let x, y;
-
-		// Random position
-		if (saved_coords.length < 200000) {
-			x = Math.random() * res_canvas.width;
-			y = Math.random() * res_canvas.height;
-			saved_coords.push(x, y);
-		}
-
-		// Repeat saved positions
-		else {
-			current_coords = (current_coords + 1) % (saved_coords.length / 2);
-			x = saved_coords[current_coords * 2];
-			y = saved_coords[current_coords * 2 + 1];
-		}
-
+		current_coords = (current_coords + 1) % (saved_coords.length / 2);
+		x = saved_coords[current_coords * 2];
+		y = saved_coords[current_coords * 2 + 1];
 		// Get the color of the pixel from the base canvas
 		const [pR, pG, pB] = base_ctx.getImageData(x / scale, y / scale, 1, 1).data;
 
@@ -168,17 +155,10 @@ async function main() {
 		res_ctx.fill();
 	};
 
-	let t = 0;
-
 	// Loop functione
 	const loop = d => {
-		if (d) t += d;
-		// const dps = t / 1000 < 1000 ? 1000 : 100;
 		const dps = 50;
-
 		for (let i = 0; i < dps; i++) circle();
-
-		// Loop
 		requestAnimationFrame(loop);
 	};
 
@@ -191,6 +171,28 @@ async function main() {
 
 		resizeCanvas(res_canvas);
 		scale = res_canvas.height / image.height;
+
+		saved_coords.length = 0;
+		current_coords = 0;
+
+		temp_coords = [];
+
+		// Generate random coordinates to fill the canvas
+		for (let k = 0; k < 2; k++) {
+			for (let i = 0; i < res_canvas.width; i += 10) {
+				for (let j = 0; j < res_canvas.height; j += 10) {
+					const x = i + (Math.random() - 0.5) * 10;
+					const y = j + (Math.random() - 0.5) * 10;
+					temp_coords.push(x, y);
+				}
+			}
+		}
+
+		// Shuffle the coordinates
+		while (temp_coords.length > 0) {
+			const i = Math.floor((Math.random() * temp_coords.length) / 2) * 2;
+			saved_coords.push(...temp_coords.splice(i, 2));
+		}
 
 		bluredBase();
 
