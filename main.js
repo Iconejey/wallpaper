@@ -105,9 +105,6 @@ async function main() {
 	base_canvas.height = image.height;
 	const base_ctx = base_canvas.getContext('2d', { willReadFrequently: true });
 
-	// const blur = 5;
-	// ctx.filter = `blur(${blur}px)`;
-
 	// Draw the image on the base_canvas
 	base_ctx.drawImage(image, 0, 0);
 
@@ -123,13 +120,18 @@ async function main() {
 	const res_ctx = res_canvas.getContext('2d');
 	document.body.appendChild(res_canvas);
 
+	const blur = 20;
+	res_ctx.filter = `blur(${blur}px)`;
+
 	// Draw the image on the result canvas
-	// res_ctx.drawImage(image, 0, 0, res_canvas.width, res_canvas.height);
+	res_ctx.drawImage(image, 0, 0, res_canvas.width, res_canvas.height);
+
+	res_ctx.filter = 'none';
 
 	// Draw a random circle on the result canvas following the image
 	const circle = () => {
 		// Random position
-		const r = 10;
+		const r = 20;
 		const x = Math.random() * res_canvas.width;
 		const y = Math.random() * res_canvas.height;
 
@@ -149,7 +151,7 @@ async function main() {
 	const loop = d => {
 		if (d) t += d;
 		// const dps = t / 1000 < 1000 ? 1000 : 100;
-		const dps = 100;
+		const dps = 20;
 		for (let i = 0; i < dps; i++) circle();
 
 		// Loop
