@@ -124,7 +124,7 @@ async function main() {
 	document.body.appendChild(res_canvas);
 
 	// Draw the image on the result canvas
-	res_ctx.drawImage(image, 0, 0, res_canvas.width, res_canvas.height);
+	// res_ctx.drawImage(image, 0, 0, res_canvas.width, res_canvas.height);
 
 	// Draw a random circle on the result canvas following the image
 	const circle = () => {
