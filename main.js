@@ -89,71 +89,86 @@ function fixHue(data) {
 	}
 }
 
-let scale = 1;
-
 function resizeCanvas(canvas) {
 	const ratio = innerWidth / innerHeight;
 	canvas.width = 1080;
 	canvas.height = canvas.width / ratio;
 }
 
+let scale = 1;
 let mode = 1;
-let saved_coords = null;
-let current_coords = 0;
 
-async function main() {
-	// Load image from file
-	const image = new Image();
-	image.src = './base.png';
-	image.crossOrigin = 'anonymous';
+async function start(event) {
+	// Get images from the file input event
+	const imgs = [];
 
-	// Wait for the image to load
-	await new Promise(res => (image.onload = res));
+	for (const file of event.target.files) {
+		const src = new Image();
+		src.src = URL.createObjectURL(file);
+		src.crossOrigin = 'anonymous';
 
-	// Create a base canvas
-	const base_canvas = document.createElement('canvas');
-	// document.body.appendChild(base_canvas);
-	base_canvas.width = image.width;
-	base_canvas.height = image.height;
-	const base_ctx = base_canvas.getContext('2d', { willReadFrequently: true });
+		// Wait for the image to load
+		await new Promise(resolve => {
+			src.onload = () => resolve();
+		});
 
-	// Draw the image on the base_canvas
-	base_ctx.drawImage(image, 0, 0);
+		// Create a canvas
+		const can = document.createElement('canvas');
+		// document.body.appendChild(base_canvas);
+		can.width = src.width;
+		can.height = src.height;
+		const ctx = can.getContext('2d', { willReadFrequently: true });
+
+		// Draw the image on the base_canvas
+		ctx.drawImage(src, 0, 0);
+
+		imgs.push({ src, can, ctx });
+	}
+
+	let image_turn = 0;
+	setInterval(() => {
+		image_turn = (image_turn + 1) % imgs.length;
+	}, 60000);
+
+	// Remove the file input
+	event.target.remove();
 
 	// Create a result canvas
 	const res_canvas = document.createElement('canvas');
 	resizeCanvas(res_canvas);
-	scale = res_canvas.height / image.height;
 	const res_ctx = res_canvas.getContext('2d');
 	document.body.appendChild(res_canvas);
 
 	// Draw blured base image on the result canvas
 	const bluredBase = () => {
 		res_ctx.filter = `blur(20px)`;
-		res_ctx.drawImage(image, 0, 0, (res_canvas.height / image.height) * image.width, res_canvas.height);
+		const src = imgs[image_turn].src;
+		res_ctx.drawImage(src, 0, 0, (res_canvas.height / src.height) * src.width, res_canvas.height);
 		res_ctx.filter = 'none';
 	};
 
 	bluredBase();
 
 	const r = 10;
-
 	const dps = 20;
 
 	// Loop functione
 	const loop = d => {
 		if (mode === -1) return;
 
+		const img = imgs[image_turn];
+
 		for (let i = 0; i < dps; i++) {
-			current_coords = (current_coords + 1) % (saved_coords.length / 6);
-			const offset = current_coords * 6;
+			const circles = img.circles;
+			img.current_circle = (img.current_circle + 1) % (circles.length / 6);
+			const offset = img.current_circle * 6;
 
 			// Coordinates
-			const x = (saved_coords[offset] << 4) | ((saved_coords[offset + 1] >> 4) & 0xf);
-			const y = ((saved_coords[offset + 1] & 0xf) << 8) | saved_coords[offset + 2];
+			const x = (circles[offset] << 4) | ((circles[offset + 1] >> 4) & 0xf);
+			const y = ((circles[offset + 1] & 0xf) << 8) | circles[offset + 2];
 
 			// Draw the circle
-			res_ctx.fillStyle = `rgb(${saved_coords[offset + 3]}, ${saved_coords[offset + 4]}, ${saved_coords[offset + 5]})`;
+			res_ctx.fillStyle = `rgb(${circles[offset + 3]}, ${circles[offset + 4]}, ${circles[offset + 5]})`;
 			res_ctx.beginPath();
 			res_ctx.arc(x, y, r, 0, Math.PI * 2);
 			res_ctx.fill();
@@ -166,47 +181,48 @@ async function main() {
 		mode = -mode;
 
 		res_canvas.requestFullscreen();
-
 		resizeCanvas(res_canvas);
-		scale = res_canvas.height / image.height;
 
-		// // Get context data
-		// const data = base_ctx.getImageData(0, 0, base_canvas.width, base_canvas.height).data;
+		for (const img of imgs) {
+			scale = res_canvas.height / img.src.height;
 
-		// Temporary array to store the coordinates
-		temp_coords = [];
+			// Temporary array to store the coordinates
+			temp_coords = [];
 
-		// Generate random coordinates to fill the canvas
-		for (let i = 0; i < res_canvas.width; i += 8) {
-			for (let j = 0; j < res_canvas.height; j += 10) {
-				const x = Math.round(i + (Math.random() - 0.5) * 10);
-				const y = Math.round(j + (Math.random() - 0.5) * 10);
+			// Generate random coordinates to fill the canvas
+			for (let i = 0; i < res_canvas.width; i += 8) {
+				for (let j = 0; j < res_canvas.height; j += 10) {
+					const x = Math.round(i + (Math.random() - 0.5) * 10);
+					const y = Math.round(j + (Math.random() - 0.5) * 10);
 
-				// Get the color of the pixel from the base canvas
-				const [r, g, b] = base_ctx.getImageData(x / scale, y / scale, 1, 1).data;
+					// Get the color of the pixel from the base canvas
+					const [r, g, b] = img.ctx.getImageData(x / scale, y / scale, 1, 1).data;
 
-				temp_coords.push([x, y, r, g, b]);
+					temp_coords.push([x, y, r, g, b]);
+				}
 			}
-		}
 
-		// Store x, y, r, g, b in a byte array (12 bits per coordinate + 8 bits per color = 6 bytes per coordinate)
-		saved_coords = new Uint8Array(temp_coords.length * 6);
-		current_coords = 0;
+			// Store x, y, r, g, b in a byte array (12 bits per coordinate + 8 bits per color = 6 bytes per coordinate)
+			const circles = new Uint8Array(temp_coords.length * 6);
 
-		// Shuffle the coordinates as we store them
-		const n = temp_coords.length;
-		for (let i = 0; i < n; i++) {
-			const temp = temp_coords.splice(Math.floor(Math.random() * temp_coords.length), 1)[0];
+			// Shuffle the coordinates as we store them
+			const n = temp_coords.length;
+			for (let i = 0; i < n; i++) {
+				const temp = temp_coords.splice(Math.floor(Math.random() * temp_coords.length), 1)[0];
 
-			// x and y are stored as 12 bits each
-			saved_coords[i * 6] = (temp[0] >> 4) & 0xff;
-			saved_coords[i * 6 + 1] = ((temp[0] & 0xf) << 4) | ((temp[1] >> 8) & 0xf);
-			saved_coords[i * 6 + 2] = temp[1] & 0xff;
+				// x and y are stored as 12 bits each
+				circles[i * 6] = (temp[0] >> 4) & 0xff;
+				circles[i * 6 + 1] = ((temp[0] & 0xf) << 4) | ((temp[1] >> 8) & 0xf);
+				circles[i * 6 + 2] = temp[1] & 0xff;
 
-			// r, g and b are stored as 8 bits each
-			saved_coords[i * 6 + 3] = temp[2];
-			saved_coords[i * 6 + 4] = temp[3];
-			saved_coords[i * 6 + 5] = temp[4];
+				// r, g and b are stored as 8 bits each
+				circles[i * 6 + 3] = temp[2];
+				circles[i * 6 + 4] = temp[3];
+				circles[i * 6 + 5] = temp[4];
+			}
+
+			img.circles = circles;
+			img.current_circle = 0;
 		}
 
 		bluredBase();
@@ -215,21 +231,26 @@ async function main() {
 		if (mode === 1) return loop();
 
 		// Mode -1 is the static mode
-		for (let i = 0; i < saved_coords.length / 6; i++) {
-			current_coords = (current_coords + 1) % (saved_coords.length / 6);
-			const offset = current_coords * 6;
+		const img = imgs[image_turn];
+
+		for (let i = 0; i < img.circles.length / 6; i++) {
+			const circles = img.circles;
+			img.current_circle = (img.current_circle + 1) % (circles.length / 6);
+			const offset = img.current_circle * 6;
 
 			// Coordinates
-			const x = (saved_coords[offset] << 4) | ((saved_coords[offset + 1] >> 4) & 0xf);
-			const y = ((saved_coords[offset + 1] & 0xf) << 8) | saved_coords[offset + 2];
+			const x = (circles[offset] << 4) | ((circles[offset + 1] >> 4) & 0xf);
+			const y = ((circles[offset + 1] & 0xf) << 8) | circles[offset + 2];
 
 			// Draw the circle
-			res_ctx.fillStyle = `rgb(${saved_coords[offset + 3]}, ${saved_coords[offset + 4]}, ${saved_coords[offset + 5]})`;
+			res_ctx.fillStyle = `rgb(${circles[offset + 3]}, ${circles[offset + 4]}, ${circles[offset + 5]})`;
 			res_ctx.beginPath();
 			res_ctx.arc(x, y, r, 0, Math.PI * 2);
 			res_ctx.fill();
 		}
 	};
+
+	res_canvas.ondblclick();
 
 	// Draw semi-transparent white circles on touch
 	res_canvas.ontouchmove = e => {
@@ -253,34 +274,4 @@ async function main() {
 	res_canvas.ontouchstart = e => {
 		res_canvas.ontouchmove(e);
 	};
-
-	// fixHue(data);
-
-	// // Put the data back on the canvas
-	// ctx.putImageData(new ImageData(data, canvas.width, canvas.height), 0, 0);
-
-	// // Crop the image to remove the white border
-	// const croppedCanvas = document.createElement('canvas');
-	// croppedCanvas.width = canvas.width - blur * 2;
-	// croppedCanvas.height = canvas.height - blur * 2;
-	// const croppedCtx = croppedCanvas.getContext('2d');
-	// croppedCtx.drawImage(canvas, blur, blur, croppedCanvas.width, croppedCanvas.height, 0, 0, croppedCanvas.width, croppedCanvas.height);
-
-	// // Save the image
-	// const link = document.createElement('a');
-	// link.download = 'fixed.png';
-
-	// // Convert the canvas to a blob
-	// res_canvas.toBlob(blob => {
-	// 	// Create a URL for the blob
-	// 	link.href = URL.createObjectURL(blob);
-
-	// 	// Click the link
-	// 	// link.click();
-
-	// 	// Remove the URL
-	// 	URL.revokeObjectURL(link.href);
-	// });
 }
-
-requestAnimationFrame(main);
