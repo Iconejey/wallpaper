@@ -95,16 +95,18 @@ function resizeCanvas(canvas) {
 	canvas.height = canvas.width / ratio;
 }
 
+const dps = 20;
 let scale = 1;
-let mode = 1;
+let r = 10;
+let mode = -1;
 
-async function start(event) {
+async function start() {
 	// Get images from the file input event
 	const imgs = [];
 
-	for (const file of event.target.files) {
+	for (let i = 1; i <= 6; i++) {
 		const src = new Image();
-		src.src = URL.createObjectURL(file);
+		src.src = `base ${i}.png`;
 		src.crossOrigin = 'anonymous';
 
 		// Wait for the image to load
@@ -128,7 +130,13 @@ async function start(event) {
 	let image_turn = 0;
 	setInterval(() => {
 		image_turn = (image_turn + 1) % imgs.length;
+		r = 100;
 	}, 60000);
+
+	setInterval(() => {
+		r = Math.max(10, r * 0.9);
+		console.log(r);
+	}, 200);
 
 	// Remove the file input
 	event.target.remove();
@@ -148,9 +156,6 @@ async function start(event) {
 	};
 
 	bluredBase();
-
-	const r = 10;
-	const dps = 20;
 
 	// Loop functione
 	const loop = d => {
@@ -275,3 +280,5 @@ async function start(event) {
 		res_canvas.ontouchmove(e);
 	};
 }
+
+requestAnimationFrame(start);
