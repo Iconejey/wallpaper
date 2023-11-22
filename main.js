@@ -135,7 +135,6 @@ async function start() {
 
 	setInterval(() => {
 		r = Math.max(10, r * 0.9);
-		console.log(r);
 	}, 200);
 
 	// Remove the file input
@@ -185,7 +184,7 @@ async function start() {
 	res_canvas.ondblclick = () => {
 		mode = -mode;
 
-		res_canvas.requestFullscreen();
+		// res_canvas.requestFullscreen();
 		resizeCanvas(res_canvas);
 
 		for (const img of imgs) {
@@ -261,17 +260,18 @@ async function start() {
 	res_canvas.ontouchmove = e => {
 		if (mode === -1) return;
 
-		const r = 10;
 		for (const touch of e.touches) {
 			const x = (touch.clientX / innerWidth) * res_canvas.width;
 			const y = (touch.clientY / innerHeight) * res_canvas.height;
 
-			const rx = x + (Math.random() - 0.5) * (r * 4);
-			const ry = y + (Math.random() - 0.5) * (r * 4);
+			const rx = x + (Math.random() - 0.5) * 100;
+			const ry = y + (Math.random() - 0.5) * 100;
 
-			res_ctx.fillStyle = `rgba(255, 255, 255, 0.4)`;
+			const [cr, cg, cb] = imgs[image_turn].ctx.getImageData(rx / scale, ry / scale, 1, 1).data;
+
+			res_ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, 0.5)`;
 			res_ctx.beginPath();
-			res_ctx.arc(rx, ry, r, 0, Math.PI * 2);
+			res_ctx.arc(rx, ry, 50, 0, Math.PI * 2);
 			res_ctx.fill();
 		}
 	};
