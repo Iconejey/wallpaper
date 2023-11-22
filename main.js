@@ -92,7 +92,9 @@ function fixHue(data) {
 function resizeCanvas(canvas) {
 	const ratio = innerWidth / innerHeight;
 	canvas.width = 1080;
+	const last_height = canvas.height;
 	canvas.height = canvas.width / ratio;
+	return last_height !== canvas.height;
 }
 
 const dps = 20;
@@ -181,52 +183,56 @@ async function start() {
 		requestAnimationFrame(loop);
 	};
 
-	res_canvas.ondblclick = () => {
+	res_canvas.ondblclick = () => reset(false);
+
+	function reset(force) {
 		mode = -mode;
 
 		// res_canvas.requestFullscreen();
-		resizeCanvas(res_canvas);
+		const changed = resizeCanvas(res_canvas) || force;
 
-		for (const img of imgs) {
-			scale = res_canvas.height / img.src.height;
+		if (changed) {
+			for (const img of imgs) {
+				scale = res_canvas.height / img.src.height;
 
-			// Temporary array to store the coordinates
-			temp_coords = [];
+				// Temporary array to store the coordinates
+				temp_coords = [];
 
-			// Generate random coordinates to fill the canvas
-			for (let i = 0; i < res_canvas.width; i += 8) {
-				for (let j = 0; j < res_canvas.height; j += 10) {
-					const x = Math.round(i + (Math.random() - 0.5) * 10);
-					const y = Math.round(j + (Math.random() - 0.5) * 10);
+				// Generate random coordinates to fill the canvas
+				for (let i = 0; i < res_canvas.width; i += 8) {
+					for (let j = 0; j < res_canvas.height; j += 10) {
+						const x = Math.round(i + (Math.random() - 0.5) * 10);
+						const y = Math.round(j + (Math.random() - 0.5) * 10);
 
-					// Get the color of the pixel from the base canvas
-					const [r, g, b] = img.ctx.getImageData(x / scale, y / scale, 1, 1).data;
+						// Get the color of the pixel from the base canvas
+						const [r, g, b] = img.ctx.getImageData(x / scale, y / scale, 1, 1).data;
 
-					temp_coords.push([x, y, r, g, b]);
+						temp_coords.push([x, y, r, g, b]);
+					}
 				}
+
+				// Store x, y, r, g, b in a byte array (12 bits per coordinate + 8 bits per color = 6 bytes per coordinate)
+				const circles = new Uint8Array(temp_coords.length * 6);
+
+				// Shuffle the coordinates as we store them
+				const n = temp_coords.length;
+				for (let i = 0; i < n; i++) {
+					const temp = temp_coords.splice(Math.floor(Math.random() * temp_coords.length), 1)[0];
+
+					// x and y are stored as 12 bits each
+					circles[i * 6] = (temp[0] >> 4) & 0xff;
+					circles[i * 6 + 1] = ((temp[0] & 0xf) << 4) | ((temp[1] >> 8) & 0xf);
+					circles[i * 6 + 2] = temp[1] & 0xff;
+
+					// r, g and b are stored as 8 bits each
+					circles[i * 6 + 3] = temp[2];
+					circles[i * 6 + 4] = temp[3];
+					circles[i * 6 + 5] = temp[4];
+				}
+
+				img.circles = circles;
+				img.current_circle = 0;
 			}
-
-			// Store x, y, r, g, b in a byte array (12 bits per coordinate + 8 bits per color = 6 bytes per coordinate)
-			const circles = new Uint8Array(temp_coords.length * 6);
-
-			// Shuffle the coordinates as we store them
-			const n = temp_coords.length;
-			for (let i = 0; i < n; i++) {
-				const temp = temp_coords.splice(Math.floor(Math.random() * temp_coords.length), 1)[0];
-
-				// x and y are stored as 12 bits each
-				circles[i * 6] = (temp[0] >> 4) & 0xff;
-				circles[i * 6 + 1] = ((temp[0] & 0xf) << 4) | ((temp[1] >> 8) & 0xf);
-				circles[i * 6 + 2] = temp[1] & 0xff;
-
-				// r, g and b are stored as 8 bits each
-				circles[i * 6 + 3] = temp[2];
-				circles[i * 6 + 4] = temp[3];
-				circles[i * 6 + 5] = temp[4];
-			}
-
-			img.circles = circles;
-			img.current_circle = 0;
 		}
 
 		bluredBase();
@@ -252,9 +258,7 @@ async function start() {
 			res_ctx.arc(x, y, r, 0, Math.PI * 2);
 			res_ctx.fill();
 		}
-	};
-
-	res_canvas.ondblclick();
+	}
 
 	// Draw semi-transparent white circles on touch
 	res_canvas.ontouchmove = e => {
@@ -279,6 +283,8 @@ async function start() {
 	res_canvas.ontouchstart = e => {
 		res_canvas.ontouchmove(e);
 	};
+
+	reset(true);
 }
 
 requestAnimationFrame(start);
