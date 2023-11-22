@@ -188,7 +188,7 @@ async function start() {
 	function reset(force) {
 		mode = -mode;
 
-		// res_canvas.requestFullscreen();
+		res_canvas.requestFullscreen();
 		const changed = resizeCanvas(res_canvas) || force;
 
 		if (changed) {
