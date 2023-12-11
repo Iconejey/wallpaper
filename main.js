@@ -296,7 +296,7 @@ async function start() {
 			const rx = x + (Math.random() - 0.5) * 100;
 			const ry = y + (Math.random() - 0.5) * 100;
 
-			res_ctx.fillStyle = 'black';
+			res_ctx.fillStyle = `rgba(0, 0, 0, 0.5)`;
 			res_ctx.beginPath();
 			res_ctx.arc(rx, ry, 50, 0, Math.PI * 2);
 			res_ctx.fill();
