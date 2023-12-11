@@ -296,9 +296,7 @@ async function start() {
 			const rx = x + (Math.random() - 0.5) * 100;
 			const ry = y + (Math.random() - 0.5) * 100;
 
-			const [cr, cg, cb] = imgs[image_turn].ctx.getImageData(rx / scale, ry / scale, 1, 1).data;
-
-			res_ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, 0.5)`;
+			res_ctx.fillStyle = 'black';
 			res_ctx.beginPath();
 			res_ctx.arc(rx, ry, 50, 0, Math.PI * 2);
 			res_ctx.fill();
