@@ -266,6 +266,7 @@ async function start() {
 
 		// Mode -1 is the static mode
 		const img = imgs[image_turn];
+		r = min_r;
 
 		for (let i = 0; i < img.circles.length / 6; i++) {
 			const circles = img.circles;
