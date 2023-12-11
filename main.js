@@ -94,6 +94,7 @@ let scale = 1;
 let r = 1;
 let r_min = 17;
 let mode = -1;
+const img_num = 8;
 let image_turn = -1;
 
 function resizeCanvas(canvas) {
@@ -104,12 +105,10 @@ function resizeCanvas(canvas) {
 	return last_height !== canvas.height;
 }
 
-async function start() {
-	// Get images from the file input event
+async function loadImages(n) {
 	const imgs = [];
-	const img_num = 8;
 
-	for (let i = 1; i <= img_num; i++) {
+	for (let i = 1; i <= n; i++) {
 		const src = new Image();
 		src.src = `green_dominant/base ${i}.png`;
 		src.crossOrigin = 'anonymous';
@@ -121,9 +120,10 @@ async function start() {
 
 		// Create a canvas
 		const can = document.createElement('canvas');
-		// document.body.appendChild(base_canvas);
+
+		// Set the canvas size following the screen ratio
 		can.width = src.width;
-		can.height = src.height;
+		can.height = src.width / (innerWidth / innerHeight);
 		const ctx = can.getContext('2d', { willReadFrequently: true });
 
 		// Draw the image on the base_canvas
@@ -133,6 +133,11 @@ async function start() {
 		imgs.push({ src, can, ctx });
 	}
 
+	console.log('loaded');
+	return imgs;
+}
+
+async function start() {
 	let decrease_timeout;
 	const decrease = () => {
 		r = Math.max(r_min, r * 0.9);
@@ -143,15 +148,10 @@ async function start() {
 		}
 	};
 
-	let skip_timeout;
 	const skip = () => {
 		image_turn = (image_turn + 1) % imgs.length;
-
 		r = 100;
 		decrease();
-
-		// if (skip_timeout) clearTimeout(skip_timeout);
-		// skip_timeout = setTimeout(skip, 30000);
 	};
 
 	// Create a result canvas
@@ -160,6 +160,10 @@ async function start() {
 	const res_ctx = res_canvas.getContext('2d');
 	document.body.appendChild(res_canvas);
 
+	// Get images from the file input event
+	const img_num = 8;
+	let imgs = [];
+
 	// Draw blured base image on the result canvas
 	const bluredBase = () => {
 		const src = imgs[image_turn].src;
@@ -167,7 +171,6 @@ async function start() {
 		res_ctx.filter = `blur(20px)`;
 		res_ctx.drawImage(src, 0, 0, (res_canvas.height / src.height) * src.width, res_canvas.height);
 		res_ctx.filter = 'none';
-		console.log('blured');
 	};
 
 	// Loop functione
@@ -203,16 +206,16 @@ async function start() {
 
 	res_canvas.ondblclick = () => reset(false);
 
-	function reset(force) {
-		mode = -mode;
-		if (mode === 1) skip();
-
+	async function reset(force) {
 		res_canvas.requestFullscreen();
 		const changed = resizeCanvas(res_canvas) || force;
 
 		if (changed) {
+			// Get images from the file input event
+			imgs = await loadImages(img_num);
+
 			for (const img of imgs) {
-				scale = res_canvas.height / img.src.height;
+				scale = img.can.width / res_canvas.width;
 
 				// Temporary array to store the coordinates
 				temp_coords = [];
@@ -224,7 +227,7 @@ async function start() {
 						const y = Math.round(j + (Math.random() - 0.5) * 10);
 
 						// Get the color of the pixel from the base canvas
-						const [r, g, b] = img.ctx.getImageData(x / scale, y / scale, 1, 1).data;
+						const [r, g, b] = img.ctx.getImageData(x * scale, y * scale, 1, 1).data;
 
 						temp_coords.push([x, y, r, g, b]);
 					}
@@ -254,6 +257,8 @@ async function start() {
 			}
 		}
 
+		mode = -mode;
+		if (mode === 1) skip();
 		bluredBase();
 
 		// Mode 1 is the loop mode
