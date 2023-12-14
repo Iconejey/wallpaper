@@ -94,7 +94,6 @@ let scale = 1;
 let r = 1;
 let r_min = 17;
 let mode = -1;
-const img_num = 8;
 let image_turn = -1;
 
 function resizeCanvas(canvas) {
@@ -105,18 +104,28 @@ function resizeCanvas(canvas) {
 	return last_height !== canvas.height;
 }
 
-async function loadImages(n) {
-	const imgs = [];
+function waitForImgLoad(img) {
+	return new Promise(res => {
+		img.onload = () => res(true);
+		img.onerror = () => res(false);
+	});
+}
 
-	for (let i = 1; i <= n; i++) {
+async function loadImages() {
+	const imgs = [];
+	let i = 0;
+
+	while (true) {
+		const dominant = location.hash.slice(1) || 'green';
+
 		const src = new Image();
-		src.src = `green_dominant/base ${i}.png`;
+		console.log(`${dominant}_dominant/base ${i}.png`);
+		src.src = `${dominant}_dominant/base ${++i}.png`;
 		src.crossOrigin = 'anonymous';
 
 		// Wait for the image to load
-		await new Promise(res => {
-			src.onload = () => res();
-		});
+		const loaded = await waitForImgLoad(src);
+		if (!loaded) break;
 
 		// Create a canvas
 		const can = document.createElement('canvas');
@@ -133,7 +142,7 @@ async function loadImages(n) {
 		imgs.push({ src, can, ctx });
 	}
 
-	console.log('loaded');
+	console.log(`Loaded ${i - 1} images`);
 	return imgs;
 }
 
@@ -161,7 +170,6 @@ async function start() {
 	document.body.appendChild(res_canvas);
 
 	// Get images from the file input event
-	const img_num = 8;
 	let imgs = [];
 
 	// Draw blured base image on the result canvas
@@ -179,7 +187,7 @@ async function start() {
 		const d = t - last_t;
 		last_t = t;
 
-		if (d > 2000) setTimeout(skip, 500);
+		if (d > 500) setTimeout(skip, 300);
 
 		if (mode === -1) return;
 
@@ -212,7 +220,7 @@ async function start() {
 
 		if (changed) {
 			// Get images from the file input event
-			imgs = await loadImages(img_num);
+			imgs = await loadImages();
 
 			for (const img of imgs) {
 				scale = img.can.width / res_canvas.width;
