@@ -116,7 +116,7 @@ async function loadImages() {
 	let i = 0;
 
 	while (true) {
-		const dominant = location.hash.slice(1) || 'green';
+		const dominant = location.hash.replace('dev', '').slice(1) || 'green';
 
 		const src = new Image();
 		console.log(`${dominant}_dominant/base ${i}.png`);
@@ -134,16 +134,33 @@ async function loadImages() {
 		can.width = src.width;
 		can.height = src.width / (innerWidth / innerHeight);
 		const ctx = can.getContext('2d', { willReadFrequently: true });
-
-		// Draw the image on the base_canvas
 		ctx.filter = `blur(1px)`;
-		ctx.drawImage(src, 0, 0);
+
+		// If the image's ratio is wider than the screen
+		if (src.width / src.height > innerWidth / innerHeight) {
+			const scale = can.height / src.height;
+			const offset = (can.width - src.width * scale) / 2;
+			ctx.drawImage(src, offset, 0, src.width * scale, can.height);
+		}
+
+		// If the image is taller than the screen
+		else {
+			const scale = can.width / src.width;
+			const offset = (can.height - src.height * scale) / 2;
+			ctx.drawImage(src, 0, offset, can.width, src.height * scale);
+		}
 
 		imgs.push({ src, can, ctx });
 	}
 
 	console.log(`Loaded ${i - 1} images`);
 	return imgs;
+}
+
+function skipTo(i) {
+	image_turn = i - 2;
+	mode = -1;
+	document.querySelector('canvas').ondblclick();
 }
 
 async function start() {
@@ -174,10 +191,10 @@ async function start() {
 
 	// Draw blured base image on the result canvas
 	const bluredBase = () => {
-		const src = imgs[image_turn].src;
-		res_ctx.drawImage(src, 0, 0, (res_canvas.height / src.height) * src.width, res_canvas.height);
+		const src = imgs[image_turn].can;
+		res_ctx.drawImage(src, 0, 0, res_canvas.width, res_canvas.height);
 		res_ctx.filter = `blur(20px)`;
-		res_ctx.drawImage(src, 0, 0, (res_canvas.height / src.height) * src.width, res_canvas.height);
+		res_ctx.drawImage(src, 0, 0, res_canvas.width, res_canvas.height);
 		res_ctx.filter = 'none';
 	};
 
@@ -215,7 +232,7 @@ async function start() {
 	res_canvas.ondblclick = () => reset(false);
 
 	async function reset(force) {
-		res_canvas.requestFullscreen();
+		if (location.hash !== '#dev') res_canvas.requestFullscreen();
 		const changed = resizeCanvas(res_canvas) || force;
 
 		if (changed) {
@@ -231,8 +248,12 @@ async function start() {
 				// Generate random coordinates to fill the canvas
 				for (let i = 0; i < res_canvas.width; i += r_min * 0.8) {
 					for (let j = 0; j < res_canvas.height; j += r_min * 0.8) {
-						const x = Math.round(i + (Math.random() - 0.5) * 10);
-						const y = Math.round(j + (Math.random() - 0.5) * 10);
+						let x = Math.round(i + (Math.random() - 0.5) * 10);
+						let y = Math.round(j + (Math.random() - 0.5) * 10);
+
+						// Prevent the coordinates from going out of the canvas
+						x = Math.max(0, Math.min(res_canvas.width - 3, x));
+						y = Math.max(0, Math.min(res_canvas.height - 3, y));
 
 						// Get the color of the pixel from the base canvas
 						const [r, g, b] = img.ctx.getImageData(x * scale, y * scale, 1, 1).data;
