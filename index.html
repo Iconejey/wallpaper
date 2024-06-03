@@ -21,6 +21,14 @@
 				background-color: black;
 			}
 
+			h1 {
+				color: white;
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+			}
+
 			svg,
 			canvas {
 				position: absolute;
@@ -28,7 +36,13 @@
 				left: 50%;
 				transform: translateX(-50%);
 			}
+
+			canvas.hidden {
+				display: none;
+			}
 		</style>
 	</head>
-	<body></body>
+	<body>
+		<h1>Loading...</h1>
+	</body>
 </html>

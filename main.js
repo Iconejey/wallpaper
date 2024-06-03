@@ -151,6 +151,7 @@ async function loadImages() {
 		}
 
 		imgs.push({ src, can, ctx });
+		document.querySelector('h1').innerText = `Loaded ${i} images`;
 	}
 
 	console.log(`Loaded ${i - 1} images`);
@@ -161,6 +162,10 @@ function skipTo(i) {
 	image_turn = i - 2;
 	mode = -1;
 	document.querySelector('canvas').ondblclick();
+}
+
+function skipToNext() {
+	skipTo(image_turn + 2);
 }
 
 async function start() {
@@ -210,20 +215,22 @@ async function start() {
 
 		const img = imgs[image_turn];
 
-		for (let i = 0; i < dps; i++) {
-			const circles = img.circles;
-			img.current_circle = (img.current_circle + 1) % (circles.length / 6);
-			const offset = img.current_circle * 6;
+		if (!document.querySelector('canvas').classList.contains('hidden')) {
+			for (let i = 0; i < dps; i++) {
+				const circles = img.circles;
+				img.current_circle = (img.current_circle + 1) % (circles.length / 6);
+				const offset = img.current_circle * 6;
 
-			// Coordinates
-			const x = (circles[offset] << 4) | ((circles[offset + 1] >> 4) & 0xf);
-			const y = ((circles[offset + 1] & 0xf) << 8) | circles[offset + 2];
+				// Coordinates
+				const x = (circles[offset] << 4) | ((circles[offset + 1] >> 4) & 0xf);
+				const y = ((circles[offset + 1] & 0xf) << 8) | circles[offset + 2];
 
-			// Draw the circle
-			res_ctx.fillStyle = `rgb(${circles[offset + 3]}, ${circles[offset + 4]}, ${circles[offset + 5]})`;
-			res_ctx.beginPath();
-			res_ctx.arc(x, y, r, 0, Math.PI * 2);
-			res_ctx.fill();
+				// Draw the circle
+				res_ctx.fillStyle = `rgb(${circles[offset + 3]}, ${circles[offset + 4]}, ${circles[offset + 5]})`;
+				res_ctx.beginPath();
+				res_ctx.arc(x, y, r, 0, Math.PI * 2);
+				res_ctx.fill();
+			}
 		}
 
 		requestAnimationFrame(loop);
@@ -236,10 +243,13 @@ async function start() {
 		const changed = resizeCanvas(res_canvas) || force;
 
 		if (changed) {
+			res_canvas.classList.add('hidden');
 			// Get images from the file input event
 			imgs = await loadImages();
 
-			for (const img of imgs) {
+			const process = img_index => {
+				document.querySelector('h1').innerText = `Processing ${img_index + 1} of ${imgs.length}`;
+				const img = imgs[img_index];
 				scale = img.can.width / res_canvas.width;
 
 				// Temporary array to store the coordinates
@@ -283,7 +293,14 @@ async function start() {
 
 				img.circles = circles;
 				img.current_circle = 0;
-			}
+
+				console.log({ img_index, imgs_length: imgs.length });
+
+				if (img_index < imgs.length - 1) requestAnimationFrame(() => process(img_index + 1));
+				else res_canvas.classList.remove('hidden');
+			};
+
+			requestAnimationFrame(() => process(0));
 		}
 
 		mode = -mode;
