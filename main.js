@@ -169,6 +169,8 @@ function skipToNext() {
 }
 
 async function start() {
+	document.querySelector('h1').innerText = 'Initializing...';
+
 	let decrease_timeout;
 	const decrease = () => {
 		r = Math.max(r_min, r * 0.9);
@@ -360,8 +362,6 @@ async function start() {
 	reset(true);
 }
 
-requestAnimationFrame(start);
-
 // Download the result image
 function download() {
 	const a = document.createElement('a');
@@ -369,3 +369,12 @@ function download() {
 	a.download = 'result.png';
 	a.click();
 }
+
+// Start the program on double click
+let started = false;
+document.querySelector('body').ondblclick = () => {
+	if (!started) {
+		requestAnimationFrame(start);
+		started = true;
+	}
+};
