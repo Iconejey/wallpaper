@@ -89,19 +89,31 @@ function fixHue(data) {
 	}
 }
 
+function getDominant() {
+	return location.hash.replace('dev', '').slice(1) || 'green';
+}
+
+async function getImgs() {
+	const res = await fetch(`/imgs/${getDominant()}`);
+	return await res.json();
+}
+
 const dps = 20;
+const r = 17;
 let scale = 1;
-let r = 1;
-let r_min = 17;
 let mode = -1;
-let image_turn = -1;
+let image_turn = 0;
 
 function resizeCanvas(canvas) {
 	const ratio = innerWidth / innerHeight;
-	canvas.width = 1080;
-	const last_height = canvas.height;
-	canvas.height = canvas.width / ratio;
-	return last_height !== canvas.height;
+	const new_width = Math.round(screen.width * devicePixelRatio);
+	const new_height = Math.round(new_width / ratio);
+
+	if (canvas.width === new_width && canvas.height === new_height) return false;
+
+	canvas.width = new_width;
+	canvas.height = new_height;
+	return true;
 }
 
 function waitForImgLoad(img) {
@@ -112,15 +124,17 @@ function waitForImgLoad(img) {
 }
 
 async function loadImages() {
+	const srcs = await getImgs();
 	const imgs = [];
 	let i = 0;
+	const dominant = getDominant();
 
-	while (true) {
-		const dominant = location.hash.replace('dev', '').slice(1) || 'green';
+	console.log(srcs);
 
+	for (const img_src of srcs) {
 		const src = new Image();
-		console.log(`${dominant}_dominant/base ${i}.png`);
-		src.src = `${dominant}_dominant/base ${++i}.png`;
+		src.src = `${dominant}_dominant/${img_src}`;
+		console.log(src.src);
 		src.crossOrigin = 'anonymous';
 
 		// Wait for the image to load
@@ -151,7 +165,7 @@ async function loadImages() {
 		}
 
 		imgs.push({ src, can, ctx });
-		document.querySelector('h1').innerText = `Loaded ${i} images`;
+		document.querySelector('h1').innerText = `Loaded ${++i} images`;
 	}
 
 	console.log(`Loaded ${i - 1} images`);
@@ -171,53 +185,62 @@ function skipToNext() {
 async function start() {
 	document.querySelector('h1').innerText = 'Initializing...';
 
-	let decrease_timeout;
-	const decrease = () => {
-		r = Math.max(r_min, r * 0.9);
-
-		if (r > r_min) {
-			if (decrease_timeout) clearTimeout(decrease_timeout);
-			decrease_timeout = setTimeout(decrease, 200);
-		}
-	};
-
 	const skip = () => {
 		image_turn = (image_turn + 1) % imgs.length;
-		r = 100;
-		decrease();
+		drawAll();
 	};
 
 	// Create a result canvas
 	const res_canvas = document.createElement('canvas');
 	resizeCanvas(res_canvas);
+	console.log('setting context');
 	const res_ctx = res_canvas.getContext('2d');
 	document.body.appendChild(res_canvas);
 
 	// Get images from the file input event
 	let imgs = [];
 
-	// Draw blured base image on the result canvas
-	const bluredBase = () => {
-		const src = imgs[image_turn].can;
-		res_ctx.drawImage(src, 0, 0, res_canvas.width, res_canvas.height);
-		res_ctx.filter = `blur(20px)`;
-		res_ctx.drawImage(src, 0, 0, res_canvas.width, res_canvas.height);
-		res_ctx.filter = 'none';
-	};
+	function drawAll() {
+		const img = imgs[image_turn];
 
-	// Loop functione
+		for (let i = 0; i < img.circles.length / 6; i++) {
+			const circles = img.circles;
+			img.current_circle = (img.current_circle + 1) % (circles.length / 6);
+			const offset = img.current_circle * 6;
+
+			// Coordinates
+			const x = (circles[offset] << 4) | ((circles[offset + 1] >> 4) & 0xf);
+			const y = ((circles[offset + 1] & 0xf) << 8) | circles[offset + 2];
+
+			// Draw the circle
+			res_ctx.fillStyle = `rgb(${circles[offset + 3]}, ${circles[offset + 4]}, ${circles[offset + 5]})`;
+			res_ctx.beginPath();
+			res_ctx.arc(x, y, r, 0, Math.PI * 2);
+			res_ctx.fill();
+		}
+	}
+
+	const dominant = getDominant();
 	let last_t = 0;
+	let last_change = 0;
+
+	// Loop function
 	const loop = t => {
 		const d = t - last_t;
 		last_t = t;
 
-		if (d > 500) setTimeout(skip, 300);
+		const hidden = res_canvas.classList.contains('hidden');
+
+		if (t - last_change > 60_000 && !hidden) {
+			last_change = t;
+			skip();
+		}
 
 		if (mode === -1) return;
 
 		const img = imgs[image_turn];
 
-		if (!document.querySelector('canvas').classList.contains('hidden')) {
+		if (!hidden) {
 			for (let i = 0; i < dps; i++) {
 				const circles = img.circles;
 				img.current_circle = (img.current_circle + 1) % (circles.length / 6);
@@ -258,8 +281,8 @@ async function start() {
 				temp_coords = [];
 
 				// Generate random coordinates to fill the canvas
-				for (let i = 0; i < res_canvas.width; i += r_min * 0.8) {
-					for (let j = 0; j < res_canvas.height; j += r_min * 0.8) {
+				for (let i = 0; i < res_canvas.width; i += r * 0.8) {
+					for (let j = 0; j < res_canvas.height; j += r * 0.8) {
 						let x = Math.round(i + (Math.random() - 0.5) * 10);
 						let y = Math.round(j + (Math.random() - 0.5) * 10);
 
@@ -306,54 +329,13 @@ async function start() {
 		}
 
 		mode = -mode;
-		if (mode === 1) skip();
-		bluredBase();
 
 		// Mode 1 is the loop mode
 		if (mode === 1) return loop();
 
 		// Mode -1 is the static mode
-		const img = imgs[image_turn];
-		r = r_min;
-
-		for (let i = 0; i < img.circles.length / 6; i++) {
-			const circles = img.circles;
-			img.current_circle = (img.current_circle + 1) % (circles.length / 6);
-			const offset = img.current_circle * 6;
-
-			// Coordinates
-			const x = (circles[offset] << 4) | ((circles[offset + 1] >> 4) & 0xf);
-			const y = ((circles[offset + 1] & 0xf) << 8) | circles[offset + 2];
-
-			// Draw the circle
-			res_ctx.fillStyle = `rgb(${circles[offset + 3]}, ${circles[offset + 4]}, ${circles[offset + 5]})`;
-			res_ctx.beginPath();
-			res_ctx.arc(x, y, r, 0, Math.PI * 2);
-			res_ctx.fill();
-		}
+		drawAll();
 	}
-
-	// Draw semi-transparent white circles on touch
-	res_canvas.ontouchmove = e => {
-		if (mode === -1) return;
-
-		for (const touch of e.touches) {
-			const x = (touch.clientX / innerWidth) * res_canvas.width;
-			const y = (touch.clientY / innerHeight) * res_canvas.height;
-
-			const rx = x + (Math.random() - 0.5) * 100;
-			const ry = y + (Math.random() - 0.5) * 100;
-
-			res_ctx.fillStyle = `rgba(0, 0, 0, 0.5)`;
-			res_ctx.beginPath();
-			res_ctx.arc(rx, ry, 50, 0, Math.PI * 2);
-			res_ctx.fill();
-		}
-	};
-
-	res_canvas.ontouchstart = e => {
-		res_canvas.ontouchmove(e);
-	};
 
 	onkeydown = e => {
 		if (e.key === ' ') skip();
