@@ -1,0 +1,16 @@
+{
+	"name": "wallpaper",
+	"version": "1.0.0",
+	"description": "",
+	"main": "server.js",
+	"scripts": {
+		"start": "node server.js",
+		"prod": "pm2 start server.js --name wallpaper"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"express": "^4.21.0"
+	}
+}
